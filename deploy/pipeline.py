@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import json
 
 from nltk.corpus import stopwords
 from nltk.tokenize import RegexpTokenizer
@@ -8,7 +9,7 @@ import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-df = pd.read_csv('melali-ml/deploy/new_bali_dataset.csv', delimiter=';', header=0)
+df = pd.read_csv('new_bali_dataset.csv', delimiter=';', header=0)
 df['price'].fillna(0, inplace=True)
 df['category'].fillna('unknown', inplace=True)
 
@@ -179,14 +180,17 @@ def create_recommendation(idx_selected, budget, days, lat_user, long_user, is_ac
     #     print(f"Biaya yang dikeluarkan untuk hari {day} : Rp {daily_cost}\n")
     
     # print(f"Total biaya yang dikeluarkan selama {days} hari : Rp {total_cost}\n")
-    return itinerary
+    json_data = json.dumps(itinerary)
+    print(itinerary)
+    print(json_data)
+    return json_data
 
-idx_selected = [80,21,24]
-budget = 100_000
-days = 3
-lat_user = -8.409518
-long_user = 115.188919
-is_accessibility = 0
+# idx_selected = [80,21,24]
+# budget = 100_000
+# days = 3
+# lat_user = -8.409518
+# long_user = 115.188919
+# is_accessibility = 0
 
-get_recommendation = create_recommendation(idx_selected,budget, days, lat_user, long_user, is_accessibility)
-print(get_recommendation)
+# get_recommendation = create_recommendation(idx_selected,budget, days, lat_user, long_user, is_accessibility)
+# print(get_recommendation)
