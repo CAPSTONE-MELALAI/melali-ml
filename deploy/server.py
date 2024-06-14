@@ -1,6 +1,4 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
-# from pipeline import create_recommendation
 
 app = FastAPI()
 
@@ -19,15 +17,7 @@ async def create_recommendation(data: dict):
     
     if not idx_selected or not budget or not days or not lat_user or not long_user:
         raise HTTPException(status_code=400, detail="Bad Request")
-    # recommendation_data = (idx_selected, budget, days, lat_user, long_user, is_accessibility)
-    # data = {
-    #     "idx_selected": idx_selected,
-    #     "budget": budget,
-    #     "days": days,
-    #     "lat_user": lat_user,
-    #     "long_user": long_user,
-    #     "is_accessibility": is_accessibility
-    # }
+
     recom = create_recommendation(idx_selected, budget, days, lat_user, long_user, is_accessibility)
     return recom
 
@@ -158,7 +148,7 @@ def create_recommendation(idx_selected, budget, days, lat_user, long_user, is_ac
 
     # Sort places by Google Maps Rating and then by Review Count
     affordable_places = affordable_places.sort_values(by=['rating', 'n_reviews'], ascending=[False, False])
-    # return affordable_places
+
     # sort by distance
     affordable_places = sort_place(affordable_places, lat_user, long_user)
 
@@ -195,21 +185,6 @@ def create_recommendation(idx_selected, budget, days, lat_user, long_user, is_ac
             dest_dict['description'] = row[1]['description']
             list_of_dest.append(dest_dict)
             
-        # itinerary[f'Day {day}'] = {
-        #     'place' : daily_itinerary['place'].tolist(),
-        #     'url' : daily_itinerary['url'].tolist(),
-        #     'is_accessibility' : daily_itinerary['is_accessibility'].tolist(),
-        #     'rating' : daily_itinerary['rating'].tolist(),
-        #     'n_reviews' : daily_itinerary['n_reviews'].tolist(),
-        #     'address' : daily_itinerary['address'].tolist(),
-        #     'price' : daily_itinerary['price'].tolist(),
-        #     'category' : daily_itinerary['category'].tolist(),
-        #     'description' : daily_itinerary['description'].tolist(),
-        #     'lat' : daily_itinerary['lat'].tolist(),
-        #     'long' : daily_itinerary['long'].tolist()
-        # }
-        # print(list_of_dest)
-        # itinerary[f'Day {day}'] = daily_itinerary['place'].tolist()
         itinerary[f'Day {day}'] = list_of_dest
         daily_cost = daily_itinerary['price'].sum()
         total_cost += daily_cost
@@ -217,24 +192,4 @@ def create_recommendation(idx_selected, budget, days, lat_user, long_user, is_ac
         # Remove selected places from affordable_places and all_places to avoid duplicates
         used_places.update(daily_itinerary['place'])
 
-    #     print(f"Jadwal Hari {day} :")
-    #     for i, place in enumerate(daily_itinerary['place'], 1):
-    #         print(f"{i}. {place}")
-    #     print(f"Biaya yang dikeluarkan untuk hari {day} : Rp {daily_cost}\n")
-    
-    # print(f"Total biaya yang dikeluarkan selama {days} hari : Rp {total_cost}\n")
-    # json_data = json.dumps(itinerary)
-    # print(json_data)
-    # print(itinerary)
-    # return json_data
     return itinerary
-
-# idx_selected = [80,21,24]
-# budget = 100_000
-# days = 3
-# lat_user = -8.409518
-# long_user = 115.188919
-# is_accessibility = 0
-
-# get_recommendation = create_recommendation(idx_selected,budget, days, lat_user, long_user, is_accessibility)
-# print(get_recommendation)
