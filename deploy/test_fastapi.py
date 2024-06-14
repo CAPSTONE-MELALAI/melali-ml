@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 import random
 
 app = FastAPI()
@@ -15,5 +16,6 @@ async def random_number():
 async def login(data: dict):
     username = data.get("nama")
     password = data.get("password")
+    
     # Perform login logic here
     return {"username":username, "password":password}
