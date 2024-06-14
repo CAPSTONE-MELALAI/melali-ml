@@ -21,15 +21,6 @@ async def create_recommendation(data: dict):
     recom = create_recommendation(idx_selected, budget, days, lat_user, long_user, is_accessibility)
     return recom
 
-@app.post("/test-login")
-async def login(data: dict):
-    username = data.get("nama")
-    password = data.get("password")
-    
-    # Perform login logic here
-    return {"username":username, "password":password}
-
-
 ### HERE IS LOGIC
 import pandas as pd
 import numpy as np
