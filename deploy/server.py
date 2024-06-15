@@ -8,23 +8,30 @@ async def root():
 
 @app.post("/recommendation")
 async def create_recommendation(data: dict):
-    idx_selected = data.get("idx_selected")
-    budget = data.get("budget")
-    days = data.get("days")
-    lat_user = data.get("lat_user")
-    long_user = data.get("long_user")
-    is_accessibility = data.get("is_accessibility")
-    
-    if not idx_selected or not budget or not days or not lat_user or not long_user:
-        raise HTTPException(status_code=400, detail="Bad Request")
+    try :
+        idx_selected = data.get("idx_selected")
+        budget = data.get("budget")
+        days = data.get("days")
+        lat_user = data.get("lat_user")
+        long_user = data.get("long_user")
+        is_accessibility = data.get("is_accessibility")
+        
+        if not idx_selected or not budget or not days or not lat_user or not long_user:
+            raise HTTPException(status_code=400, detail="Bad Request")
 
-    recom = create_recommendation(idx_selected, budget, days, lat_user, long_user, is_accessibility)
-    return recom
+        data_recom = create_recommendation(idx_selected, budget, days, lat_user, long_user, is_accessibility)
+        return create_response(success=True, 
+                               message="gg bang",
+                               data=data_recom)
+    except Exception as e:
+        return create_response(success=False, 
+                               message="nt bang",
+                               data=[])
 
 ### HERE IS LOGIC
 import pandas as pd
 import numpy as np
-import json
+from fastapi.responses import JSONResponse
 
 from nltk.corpus import stopwords
 from nltk.tokenize import RegexpTokenizer
@@ -139,19 +146,19 @@ def create_recommendation(idx_selected, budget, days, lat_user, long_user, is_ac
 
     # Sort places by Google Maps Rating and then by Review Count
     affordable_places = affordable_places.sort_values(by=['rating', 'n_reviews'], ascending=[False, False])
-
+    # return affordable_places
     # sort by distance
     affordable_places = sort_place(affordable_places, lat_user, long_user)
 
     # Create itinerary
-    itinerary = {}
-    list_of_dest = []
-    total_cost = 0
+    
+    list_per_day = []
     places_per_day = 3
     all_places = filtered_places.sort_values(by=['rating', 'n_reviews'], ascending=[False, False])
 
     used_places = set()
     for day in range(1, days + 1):
+        list_of_dest = []   
         daily_itinerary = affordable_places[~affordable_places['place'].isin(used_places)].head(places_per_day)
         
         # Fallback if no affordable places are left
@@ -175,12 +182,19 @@ def create_recommendation(idx_selected, budget, days, lat_user, long_user, is_ac
             dest_dict['category'] = row[1]['category']
             dest_dict['description'] = row[1]['description']
             list_of_dest.append(dest_dict)
+         
             
-        itinerary[f'Day {day}'] = list_of_dest
-        daily_cost = daily_itinerary['price'].sum()
-        total_cost += daily_cost
-        
+        list_per_day.append(list_of_dest)
+ 
         # Remove selected places from affordable_places and all_places to avoid duplicates
         used_places.update(daily_itinerary['place'])
 
-    return itinerary
+    return list_per_day
+
+def create_response(success: bool, message:str, data):
+    response = {
+        "success": success,
+        "message": message,
+        "data": data
+    }
+    return JSONResponse(content=response)
