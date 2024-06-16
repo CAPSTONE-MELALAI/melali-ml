@@ -265,7 +265,7 @@ def create_final_data(list_of_idx):
     
     return list_of_dest
 
-def might_like(idx_user, model=model):
+def might_like(idx_user):
     tourism_data = np.array(list(set(df_user.Place_Id)))
     user = np.array([idx_user]*len(tourism_data))
 
