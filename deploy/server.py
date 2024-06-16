@@ -192,6 +192,7 @@ def create_recommendation(idx_selected, budget, days, lat_user, long_user, is_ac
         
         for row in daily_itinerary.iterrows():
             dest_dict = {}
+            dest_dict['idx_place'] = row[1]['index']
             dest_dict['place'] = row[1]['place']
             dest_dict['url'] = row[1]['url']
             dest_dict['address'] = row[1]['address']
@@ -252,6 +253,7 @@ def create_final_data(list_of_idx):
 
     for row in new_df.iterrows():
         dest_dict = {}
+        dest_dict['idx_place'] = row[1]['index']
         dest_dict['place'] = row[1]['place']
         dest_dict['url'] = row[1]['url']
         dest_dict['address'] = row[1]['address']
