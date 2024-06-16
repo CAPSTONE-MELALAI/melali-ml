@@ -61,9 +61,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 df_destination = pd.read_csv('../dataset/new_bali_dataset.csv', delimiter=';', header=0)
-df_destination['price'].fillna(0, inplace=True)
-df_destination['category'].fillna('unknown', inplace=True)
-
 
 # Function for removing NonAscii characters
 def _removeNonAscii(text):
@@ -136,17 +133,56 @@ def recommendation(index):
     records = data_category['place'].iloc[place_indices]
     return records
 
-def sort_place(affordable_places,lat_user, long_user):
-    # get latitude and longitude from affordable_places
+import networkx as nx
+from sklearn.cluster import KMeans
 
-    # calculate euclidean distance from user to places
-    distances = np.sqrt(((affordable_places['lat'] - lat_user)**2) + ((affordable_places['long'] - long_user)**2))
-    affordable_places['distance'] = distances
+# Function to calculate distances between places including user's location
+def calculate_distances_with_user(places, lat_user, long_user):
+    coordinates = places[['lat', 'long']].values
+    user_location = np.array([lat_user, long_user])
+    distances = {}
     
-    # sort dataframe based on distance
-    affordable_places = affordable_places.sort_values(by='distance', ascending=False)
+    # Calculate distances between places
+    for i, coord1 in enumerate(coordinates):
+        for j, coord2 in enumerate(coordinates):
+            if i != j:
+                distances[(i, j)] = np.linalg.norm(coord1 - coord2)
     
-    return affordable_places
+    # Calculate distances from user location to each place
+    for i, coord in enumerate(coordinates):
+        distances[('user', i)] = np.linalg.norm(user_location - coord)
+        distances[(i, 'user')] = np.linalg.norm(coord - user_location)
+    
+    return distances
+
+def sort_place_with_nn_and_user(affordable_places, lat_user, long_user, days):
+    coordinates = affordable_places[['lat', 'long']].values
+
+    # Perform K-Means clustering
+    kmeans = KMeans(n_clusters=days, random_state=42).fit(coordinates)
+    affordable_places['cluster'] = kmeans.labels_
+
+    sorted_places = pd.DataFrame()
+    for cluster in range(days):
+        cluster_places = affordable_places[affordable_places['cluster'] == cluster]
+        if len(cluster_places) > 1:
+            distances = calculate_distances_with_user(cluster_places, lat_user, long_user)
+
+            # Create graph
+            G = nx.Graph()
+            for (place1, place2), distance in distances.items():
+                G.add_edge(place1, place2, weight=distance)
+
+            # Nearest Neighbor TSP starting from user
+            route = nx.approximation.traveling_salesman_problem(G, cycle=False)
+            route_indices = [i for i in route if i != 'user']
+            sorted_cluster_places = cluster_places.iloc[route_indices]
+        else:
+            sorted_cluster_places = cluster_places
+
+        sorted_places = pd.concat([sorted_places, sorted_cluster_places])
+
+    return sorted_places
 
 def create_recommendation(idx_selected, budget, days, lat_user, long_user, is_accessibility=0):
     # create recommendation
@@ -167,8 +203,8 @@ def create_recommendation(idx_selected, budget, days, lat_user, long_user, is_ac
     # Sort places by Google Maps Rating and then by Review Count
     affordable_places = affordable_places.sort_values(by=['rating', 'n_reviews'], ascending=[False, False])
     # return affordable_places
-    # sort by distance
-    affordable_places = sort_place(affordable_places, lat_user, long_user)
+    # sort by kmeans
+    affordable_places = sort_place_with_nn_and_user(affordable_places, lat_user, long_user, days)
 
     # Create itinerary
     

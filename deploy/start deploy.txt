@@ -1,0 +1,25 @@
+- make vps gcp
+- sudo apt update
+- sudo apt upgrade
+- sudo apt install git
+- sudo git clone {}
+- sudo apt install pip
+- sudo apt install python3-venv
+- python3 -m venv myvenv
+- source myvenv/bin/activate
+- pip install numpy pandas tensorflow fastapi uvicorn scikit-learn keras nltk
+cd
+export FASTAPI_HOST=0.0.0.0
+export FASTAPI_PORT=5000
+
+uvicorn server:app --host 0.0.0.0 --port 5000 --reload
+buka link sesuai ip publik
+
+- sudo apt install venv 
+- python3 -m venv {myvenv}
+- source myvenv}/bin/activate
+- install lib
+- go to file
+- export FASTAPI_PORT HOST
+- uvicorn host
+

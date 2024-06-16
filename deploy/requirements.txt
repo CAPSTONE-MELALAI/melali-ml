@@ -1,8 +1,9 @@
 fastapi
+uvicorn
 pandas
 numpy
 tensorflow
 keras
-nltk
-re
 scikit-learn
+re
+nltk
