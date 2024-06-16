@@ -202,6 +202,8 @@ def create_recommendation(idx_selected, budget, days, lat_user, long_user, is_ac
             dest_dict['price'] = row[1]['price']
             dest_dict['category'] = row[1]['category']
             dest_dict['description'] = row[1]['description']
+            dest_dict['lat'] = row[1]['lat']  
+            dest_dict['long'] = row[1]['long']
             list_of_dest.append(dest_dict)
          
             
@@ -263,6 +265,8 @@ def create_final_data(list_of_idx):
         dest_dict['price'] = row[1]['price']
         dest_dict['category'] = row[1]['category']
         dest_dict['description'] = row[1]['description']
+        dest_dict['lat'] = row[1]['lat']  
+        dest_dict['long'] = row[1]['long']
         list_of_dest.append(dest_dict)
     
     return list_of_dest
