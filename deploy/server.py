@@ -28,9 +28,29 @@ async def create_recommendation(data: dict):
                                message="nt bang",
                                data=[])
 
+@app.post("/might-like/{id}")
+async def create_10_top(id: int):
+    try :
+        if not id:
+            raise HTTPException(status_code=400, detail="Bad Request")
+
+        data_recom = might_like(id)
+        return create_response(success=True, 
+                               message="gg bang",
+                               data=data_recom)
+    except Exception as e:
+        return create_response(success=False, 
+                               message="nt bang",
+                               data=[])
+    
 ### HERE IS LOGIC
 import pandas as pd
 import numpy as np
+
+import tensorflow as tf
+from keras.layers import Input, Embedding, Flatten, Dot, Dense, Concatenate
+from keras.models import Model
+
 from fastapi.responses import JSONResponse
 
 from nltk.corpus import stopwords
@@ -40,9 +60,9 @@ import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-df = pd.read_csv('new_bali_dataset.csv', delimiter=';', header=0)
-df['price'].fillna(0, inplace=True)
-df['category'].fillna('unknown', inplace=True)
+df_destination = pd.read_csv('../dataset/new_bali_dataset.csv', delimiter=';', header=0)
+df_destination['price'].fillna(0, inplace=True)
+df_destination['category'].fillna('unknown', inplace=True)
 
 
 # Function for removing NonAscii characters
@@ -74,18 +94,18 @@ def remove_html(text):
     return html_pattern.sub(r'', text)
 
 # Applying all the functions in description and storing as a cleaned_desc
-df['cleaned_desc'] = df['description'].apply(_removeNonAscii)
-df['cleaned_desc'] = df.cleaned_desc.apply(func = make_lower_case)
-df['cleaned_desc'] = df.cleaned_desc.apply(func = remove_stop_words)
-df['cleaned_desc'] = df.cleaned_desc.apply(func=remove_punctuation)
-df['cleaned_desc'] = df.cleaned_desc.apply(func=remove_html)
+df_destination['cleaned_desc'] = df_destination['description'].apply(_removeNonAscii)
+df_destination['cleaned_desc'] = df_destination.cleaned_desc.apply(func = make_lower_case)
+df_destination['cleaned_desc'] = df_destination.cleaned_desc.apply(func = remove_stop_words)
+df_destination['cleaned_desc'] = df_destination.cleaned_desc.apply(func=remove_punctuation)
+df_destination['cleaned_desc'] = df_destination.cleaned_desc.apply(func=remove_html)
 
 def recommendation(index):
     
-    place = df.loc[index, 'place']
-    category = df.loc[index, 'category']
+    place = df_destination.loc[index, 'place']
+    category = df_destination.loc[index, 'category']
     # Matching the category with the dataset and reset the index
-    data_category = df[df['category'] == category].reset_index(drop=True)
+    data_category = df_destination[df_destination['category'] == category].reset_index(drop=True)
   
     # Convert the index into series
     indices = pd.Series(data_category.index, index=data_category['place'])
@@ -131,11 +151,11 @@ def sort_place(affordable_places,lat_user, long_user):
 def create_recommendation(idx_selected, budget, days, lat_user, long_user, is_accessibility=0):
     # create recommendation
     recommended_places = set()
-    # selected_places = df.iloc[idx_selected][['place', 'category']].values
+    # selected_places = df_destination.iloc[idx_selected][['place', 'category']].values
     for idx in idx_selected:
         recommended_places.update(recommendation(idx))
 
-    filtered_places = df[df['place'].isin(recommended_places)]
+    filtered_places = df_destination[df_destination['place'].isin(recommended_places)]
     
     # filter based on accessibility
     if is_accessibility == 1:
@@ -190,6 +210,73 @@ def create_recommendation(idx_selected, budget, days, lat_user, long_user, is_ac
         used_places.update(daily_itinerary['place'])
 
     return list_per_day
+
+### HERE IS LOGIC 2
+df_user = pd.read_csv('../dataset/user_rating.csv')
+place_num = len(df_user.Place_Id.unique())
+n_users = len(df_user.User_Id.unique())
+
+from sklearn.model_selection import train_test_split
+train, test = train_test_split(df_user, test_size=0.2, random_state=42)
+
+def create_model():
+    # creating destination embedding path
+    destination_input = Input(shape=[1])
+    destination_embedding = Embedding(place_num+1, 5)(destination_input)
+    destination_flat = Flatten()(destination_embedding)
+
+    # creating user embedding path
+    user_input = Input(shape=[1])
+    user_embedding = Embedding(n_users+1, 5)(user_input)
+    user_flat = Flatten()(user_embedding)
+
+    # concatenate features
+    conc = Concatenate()([destination_flat, user_flat])
+
+    # add fully-connected-layers
+    x = Dense(128, activation='relu')(conc)
+    x = Dense(64, activation='relu')(x)
+    output = Dense(1)(x)
+
+    # Create model and compile it
+    model = Model([user_input, destination_input], output)
+    model.compile('adam', 'mean_squared_error')
+    history = model.fit([train.User_Id, train.Place_Id], train.Place_Ratings, epochs=20)
+    return history, model
+
+model = tf.keras.models.load_model('../model/model.h5')
+
+def create_final_data(list_of_idx):
+    new_df = df_destination[df_destination.index.isin(list_of_idx)].copy()
+    list_of_dest = []
+
+    for row in new_df.iterrows():
+        dest_dict = {}
+        dest_dict['place'] = row[1]['place']
+        dest_dict['url'] = row[1]['url']
+        dest_dict['address'] = row[1]['address']
+        dest_dict['is_accessibility'] = row[1]['is_accessibility']
+        dest_dict['rating'] = row[1]['rating']
+        dest_dict['n_reviews'] = row[1]['n_reviews']
+        dest_dict['price'] = row[1]['price']
+        dest_dict['category'] = row[1]['category']
+        dest_dict['description'] = row[1]['description']
+        list_of_dest.append(dest_dict)
+    
+    return list_of_dest
+
+def might_like(idx_user, model=model):
+    tourism_data = np.array(list(set(df_user.Place_Id)))
+    user = np.array([idx_user]*len(tourism_data))
+
+    predictions = model.predict([user, tourism_data])
+    predictions = np.array([a[0] for a in predictions])
+    
+    recommended_tourism_idx = (-predictions).argsort()[:10]
+    
+    #convert index to data place
+    data = create_final_data(recommended_tourism_idx)
+    return data
 
 def create_response(success: bool, message:str, data):
     response = {
