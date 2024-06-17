@@ -28,20 +28,23 @@ async def create_recommendation(data: dict):
                                message="nt bang",
                                data=[])
 
-@app.post("/might-like/{id}")
-async def create_10_top(id: int):
-    try :
-        if not id:
-            raise HTTPException(status_code=400, detail="Bad Request")
+@app.post("/might-like")
+async def create_10_top(data: dict):
+    # try : 
+    idx_user = data.get("idx_user")
+    category = data.get("category")
 
-        data_recom = might_like(id)
-        return create_response(success=True, 
-                               message="gg bang",
-                               data=data_recom)
-    except Exception as e:
-        return create_response(success=False, 
-                               message="nt bang",
-                               data=[])
+    if not idx_user or not category:
+        raise HTTPException(status_code=400, detail="Bad Request")
+
+    data_recom = might_like(idx_user, category)
+    return create_response(success=True, 
+                            message="gg bang",
+                            data=data_recom)
+    # except Exception as e:
+    #     return create_response(success=False, 
+    #                            message="nt bang",
+    #                            data=[])
     
 ### HERE IS LOGIC
 import pandas as pd
@@ -98,7 +101,6 @@ df_destination['cleaned_desc'] = df_destination.cleaned_desc.apply(func=remove_p
 df_destination['cleaned_desc'] = df_destination.cleaned_desc.apply(func=remove_html)
 
 def recommendation(index):
-    
     place = df_destination.loc[index, 'place']
     category = df_destination.loc[index, 'category']
     # Matching the category with the dataset and reset the index
@@ -258,64 +260,41 @@ n_users = len(df_user.User_Id.unique())
 from sklearn.model_selection import train_test_split
 train, test = train_test_split(df_user, test_size=0.2, random_state=42)
 
-def create_model():
-    # creating destination embedding path
-    destination_input = Input(shape=[1])
-    destination_embedding = Embedding(place_num+1, 5)(destination_input)
-    destination_flat = Flatten()(destination_embedding)
-
-    # creating user embedding path
-    user_input = Input(shape=[1])
-    user_embedding = Embedding(n_users+1, 5)(user_input)
-    user_flat = Flatten()(user_embedding)
-
-    # concatenate features
-    conc = Concatenate()([destination_flat, user_flat])
-
-    # add fully-connected-layers
-    x = Dense(128, activation='relu')(conc)
-    x = Dense(64, activation='relu')(x)
-    output = Dense(1)(x)
-
-    # Create model and compile it
-    model = Model([user_input, destination_input], output)
-    model.compile('adam', 'mean_squared_error')
-    history = model.fit([train.User_Id, train.Place_Id], train.Place_Ratings, epochs=20)
-    return history, model
-
 model = tf.keras.models.load_model('../model/model.h5')
 
 def create_final_data(list_of_idx):
-    new_df = df_destination[df_destination.index.isin(list_of_idx)].copy()
     list_of_dest = []
-
-    for row in new_df.iterrows():
+    
+    for row in list_of_idx:
         dest_dict = {}
-        dest_dict['idx_place'] = row[1]['index']
-        dest_dict['place'] = row[1]['place']
-        dest_dict['url'] = row[1]['url']
-        dest_dict['address'] = row[1]['address']
-        dest_dict['is_accessibility'] = row[1]['is_accessibility']
-        dest_dict['rating'] = row[1]['rating']
-        dest_dict['n_reviews'] = row[1]['n_reviews']
-        dest_dict['price'] = row[1]['price']
-        dest_dict['category'] = row[1]['category']
-        dest_dict['description'] = row[1]['description']
-        dest_dict['lat'] = row[1]['lat']  
-        dest_dict['long'] = row[1]['long']
+        get_data = df_destination.iloc[row]
+        dest_dict['idx_place'] = int(get_data['index'])
+        dest_dict['place'] = get_data['place']
+        dest_dict['url'] = get_data['url']
+        dest_dict['address'] = get_data['address']
+        dest_dict['is_accessibility'] = int(get_data['is_accessibility'])
+        dest_dict['rating'] = float(get_data['rating'])
+        dest_dict['n_reviews'] = int(get_data['n_reviews'])
+        dest_dict['price'] = float(get_data['price'])
+        dest_dict['category'] = get_data['category']
+        dest_dict['description'] = get_data['description']
         list_of_dest.append(dest_dict)
     
     return list_of_dest
 
-def might_like(idx_user):
+def might_like(idx_user, category):
+    new_df = df_destination[df_destination['idx_category'].isin(category)].copy()
+
+    # create prediction
     tourism_data = np.array(list(set(df_user.Place_Id)))
     user = np.array([idx_user]*len(tourism_data))
-
     predictions = model.predict([user, tourism_data])
     predictions = np.array([a[0] for a in predictions])
     
-    recommended_tourism_idx = (-predictions).argsort()[:10]
-    
+    recommended_tourism_idx = (-predictions).argsort()
+    # print("this is recommended_tourism_idx",recommended_tourism_idx)
+    recommended_tourism_idx = [idx for idx in recommended_tourism_idx if idx in new_df.index][:10]
+    # print("this is recommended_tourism_idx after",recommended_tourism_idx)
     #convert index to data place
     data = create_final_data(recommended_tourism_idx)
     return data
@@ -327,3 +306,5 @@ def create_response(success: bool, message:str, data):
         "data": data
     }
     return JSONResponse(content=response)
+
+# print(might_like(5, [2, 3]))
