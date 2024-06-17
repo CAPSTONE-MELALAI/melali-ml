@@ -278,6 +278,8 @@ def create_final_data(list_of_idx):
         dest_dict['price'] = float(get_data['price'])
         dest_dict['category'] = get_data['category']
         dest_dict['description'] = get_data['description']
+        dest_dict['lat'] = float(get_data['lat'])
+        dest_dict['long'] = float(get_data['long'])
         list_of_dest.append(dest_dict)
     
     return list_of_dest
